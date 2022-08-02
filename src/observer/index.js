@@ -1,11 +1,13 @@
 import { 
   has, 
+  def,
   each,
   isArray,
   isObject, 
   isInstance,
   isPlainObject
 } from "../utils"
+import arrayMethods from "./array"
 
 const observe = v => {
   // 原始值不用处理
@@ -28,21 +30,32 @@ const observe = v => {
 
 class Observer {
   constructor (v) {
+    def(v, '__ob__', this)
+
     if (isArray(v)) {
-      each(v, (_, val) => {
-        observe(val)
-      })
+      // 劫持
+      v.__proto__ = arrayMethods
+
+      this.observeArray(v)
     } else {
       each(v, (key, val) => {
         defineReactive(v, key, val)
       })
     }
+
+    return this
+  }
+
+  observeArray (v) {
+    each(v, (_, val) => {
+      observe(val)
+    })
   }
 }
 
 // 实现响应式
 const defineReactive = (obj, key, val) => {
-  // 所有层次的对象的属性-
+  // 所有层次的对象的属性
   observe(val)
 
   Object.defineProperty(obj, key, {

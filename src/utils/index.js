@@ -1,4 +1,5 @@
 import has from "./has"
+import def from "./def"
 import each from "./each"
 import keys from "./keys"
 import isArray from "./isArray"
@@ -9,6 +10,7 @@ import isPlainObject from "./isPlainObject"
 
 export {
   has,
+  def,
   each,
   keys,
   isArray,

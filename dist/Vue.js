@@ -43,6 +43,15 @@
     return target.hasOwnProperty(prop);
   };
 
+  var def = function def(obj, key, val, enumerable) {
+    Object.defineProperty(obj, key, {
+      value: val,
+      enumerable: !!enumerable,
+      writable: true,
+      configurable: true
+    });
+  };
+
   var isArray = function isArray(v) {
     return Array.isArray(v);
   };
@@ -80,6 +89,42 @@
     return a instanceof b;
   };
 
+  var arrayProto = Array.prototype;
+  var arrayMethods = Object.create(arrayProto);
+  var methods = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse'];
+  each(methods, function (_, method) {
+    arrayMethods[method] = function () {
+      var context = this;
+      var original = arrayProto[method];
+
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      var result = original.call.apply(original, [context].concat(args));
+      var inserted = null;
+
+      switch (method) {
+        case 'push':
+        case 'unshift':
+          {
+            inserted = args;
+            break;
+          }
+
+        case 'splice':
+          {
+            inserted = args.splice(2);
+            break;
+          }
+      }
+
+      context.__ob__.observeArray(inserted);
+
+      return result;
+    };
+  });
+
   var observe = function observe(v) {
     // 原始值不用处理
     if (!isObject(v)) {
@@ -99,23 +144,40 @@
     return ob;
   };
 
-  var Observer = /*#__PURE__*/_createClass(function Observer(v) {
-    _classCallCheck(this, Observer);
+  var Observer = /*#__PURE__*/function () {
+    function Observer(v) {
+      _classCallCheck(this, Observer);
 
-    if (isArray(v)) {
-      each(v, function (_, val) {
-        observe(val);
-      });
-    } else {
-      each(v, function (key, val) {
-        defineReactive(v, key, val);
-      });
+      def(v, '__ob__', this);
+
+      if (isArray(v)) {
+        // 劫持
+        v.__proto__ = arrayMethods;
+        this.observeArray(v);
+      } else {
+        each(v, function (key, val) {
+          defineReactive(v, key, val);
+        });
+      }
+
+      return this;
     }
-  }); // 实现响应式
+
+    _createClass(Observer, [{
+      key: "observeArray",
+      value: function observeArray(v) {
+        each(v, function (_, val) {
+          observe(val);
+        });
+      }
+    }]);
+
+    return Observer;
+  }(); // 实现响应式
 
 
   var defineReactive = function defineReactive(obj, key, val) {
-    // 所有层次的对象的属性-
+    // 所有层次的对象的属性
     observe(val);
     Object.defineProperty(obj, key, {
       get: function get() {
