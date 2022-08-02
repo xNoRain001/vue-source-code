@@ -1,5 +1,5 @@
-import isArrat from "./isArray"
-import isPlainObject from "./isPlainObject"
+import isArrat from "./is-array"
+import isPlainObject from "./is-plain-object"
 
 const keys = target => {
   if (isArrat(target)) {

@@ -7,6 +7,22 @@
   <title>Document</title>
 </head>
 <body>
+  <div id="app">
+    <div foo="foo" bar="bar" style="color: red; font-size: 16px;">
+      Lorem ipsum dolor sit amet consectetur adipisicing elit.
+    </div>
+  </div>
   <script src="../dist/Vue.js"></script>
+  <script>
+    const vm = new Vue({
+      el: '#app',
+      data () {
+        return {
+          foo: [{A: '1'}]
+        }
+      }
+    })
+    console.log(vm)
+  </script>
 </body>
 </html>
