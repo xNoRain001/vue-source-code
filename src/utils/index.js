@@ -1,13 +1,19 @@
+import has from "./has"
 import each from "./each"
 import keys from "./keys"
-import isArrat from "./isArray"
+import isArray from "./isArray"
+import isObject from "./isObject"
 import isFunction from "./isFunction"
+import isInstance from "./isInstance"
 import isPlainObject from "./isPlainObject"
 
 export {
+  has,
   each,
   keys,
-  isArrat,
+  isArray,
+  isObject,
   isFunction,
+  isInstance,
   isPlainObject
 }

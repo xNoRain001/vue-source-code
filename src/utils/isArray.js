@@ -1,3 +1,3 @@
-const isArrat = v => Array.isArray(v)
+const isArray = v => Array.isArray(v)
 
-export default isArrat
+export default isArray

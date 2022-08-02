@@ -1,3 +1,4 @@
+import observe from "../../observer"
 import { 
   each,
   isFunction, 
@@ -20,6 +21,9 @@ const initData = (vm) => {
   each(data, (key) => {
     proxy(vm, '_data', key)
   })
+
+  // data 响应式
+  observe(data)
 }
 
 const proxy = (vm, soureKey, key) => {

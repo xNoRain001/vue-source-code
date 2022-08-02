@@ -4,6 +4,16 @@
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.Vue = factory());
 })(this, (function () { 'use strict';
 
+  function _typeof(obj) {
+    "@babel/helpers - typeof";
+
+    return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) {
+      return typeof obj;
+    } : function (obj) {
+      return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+    }, _typeof(obj);
+  }
+
   function _classCallCheck(instance, Constructor) {
     if (!(instance instanceof Constructor)) {
       throw new TypeError("Cannot call a class as a function");
@@ -29,7 +39,11 @@
     return Constructor;
   }
 
-  var isArrat = function isArrat(v) {
+  var has = function has(target, prop) {
+    return target.hasOwnProperty(prop);
+  };
+
+  var isArray = function isArray(v) {
     return Array.isArray(v);
   };
 
@@ -38,7 +52,7 @@
   };
 
   var keys = function keys(target) {
-    if (isArrat(target)) {
+    if (isArray(target)) {
       return Object.keys(target);
     } else if (isPlainObject(target)) {
       return Object.getOwnPropertySymbols(target).concat(Object.keys(target));
@@ -54,8 +68,66 @@
     }
   };
 
+  var isObject = function isObject(v) {
+    return v !== null && _typeof(v) === 'object';
+  };
+
   var isFunction = function isFunction(v) {
     return typeof v === 'function';
+  };
+
+  var isInstance = function isInstance(a, b) {
+    return a instanceof b;
+  };
+
+  var observe = function observe(v) {
+    // 原始值不用处理
+    if (!isObject(v)) {
+      return;
+    }
+
+    var ob = null; // 只是不想 ob = v.__ob__，这样就访问两次这个属性了。
+
+    var _ob = null;
+
+    if (has(v, '__ob__') && isInstance(_ob = v.__ob__, Observer)) {
+      ob = _ob;
+    } else if (isArray(v) || isPlainObject(v)) {
+      ob = new Observer(v);
+    }
+
+    return ob;
+  };
+
+  var Observer = /*#__PURE__*/_createClass(function Observer(v) {
+    _classCallCheck(this, Observer);
+
+    if (isArray(v)) {
+      each(v, function (_, val) {
+        observe(val);
+      });
+    } else {
+      each(v, function (key, val) {
+        defineReactive(v, key, val);
+      });
+    }
+  }); // 实现响应式
+
+
+  var defineReactive = function defineReactive(obj, key, val) {
+    // 所有层次的对象的属性-
+    observe(val);
+    Object.defineProperty(obj, key, {
+      get: function get() {
+        return val;
+      },
+      set: function set(newVal) {
+        if (newVal !== val) {
+          val = newVal;
+          observe(newVal);
+        }
+      }
+    });
   };
 
   var initData = function initData(vm) {
@@ -69,7 +141,9 @@
 
     each(data, function (key) {
       proxy(vm, '_data', key);
-    });
+    }); // data 响应式
+
+    observe(data);
   };
 
   var proxy = function proxy(vm, soureKey, key) {
