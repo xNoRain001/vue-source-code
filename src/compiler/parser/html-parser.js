@@ -30,7 +30,7 @@ const parseHTML = html => {
       let attr = null
       let end = null
 
-      // 结束的地方肯定没有属性了，attr 为 false。要是 html.match(startTagClose)
+      // 结束的地方肯定没有属性了，attr 为 false，要是 html.match(startTagClose)
       // 在后面不会执行。
       while (!(end = html.match(startTagClose)) && (attr = html.match(attribute))) {
         match.attrs.push({

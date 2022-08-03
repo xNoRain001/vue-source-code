@@ -39,6 +39,171 @@
     return Constructor;
   }
 
+  var has = function has(target, prop) {
+    return target.hasOwnProperty(prop);
+  };
+
+  var def = function def(obj, key, val, enumerable) {
+    Object.defineProperty(obj, key, {
+      value: val,
+      enumerable: !!enumerable,
+      writable: true,
+      configurable: true
+    });
+  };
+
+  var isArray = function isArray(v) {
+    return Array.isArray(v);
+  };
+
+  var isPlainObject = function isPlainObject(v) {
+    return Object.prototype.toString.call(v).slice(8, -1) === 'Object';
+  };
+
+  var keys = function keys(target) {
+    if (isArray(target)) {
+      return Object.keys(target);
+    } else if (isPlainObject(target)) {
+      return Object.getOwnPropertySymbols(target).concat(Object.keys(target));
+    }
+  };
+
+  var each = function each(target, fn) {
+    var _keys = keys(target);
+
+    for (var i = 0, l = _keys.length; i < l; i++) {
+      var key = _keys[i];
+      fn.call(target, key, target[key]);
+    }
+  };
+
+  var isObject = function isObject(v) {
+    return v !== null && _typeof(v) === 'object';
+  };
+
+  var isFunction = function isFunction(v) {
+    return typeof v === 'function';
+  };
+
+  var isInstance = function isInstance(a, b) {
+    return a instanceof b;
+  };
+
+  var generate = function generate(ast) {
+    var tag = ast.tag,
+        attrs = ast.attrs,
+        children = ast.children;
+    var data = '';
+    var childrenCode = '';
+
+    if (attrs) {
+      data = genProps(attrs);
+    }
+
+    if (children.length) {
+      childrenCode = genChildren(children);
+    }
+
+    if (data && childrenCode) {
+      return "_c(\"".concat(tag, "\",").concat(data, ",").concat(childrenCode, ")");
+    } else if (data) {
+      return "_c(\"".concat(tag, "\",").concat(data, ")");
+    } else if (childrenCode) {
+      return "_c(\"".concat(tag, "\",").concat(childrenCode, ")");
+    } else {
+      return "_c(\"".concat(tag, "\")");
+    }
+  };
+
+  var genProps = function genProps(attrs) {
+    var staticStyle = '';
+    var staticAttrs = '';
+    each(attrs, function (_, prop) {
+      var name = prop.name,
+          value = prop.value;
+
+      if (name === 'style') {
+        value.replace(/\s*([^;:]+)\:\s*([^;:]+)/g, function (_, $1, $2) {
+          staticStyle += "\"".concat($1, "\":\"").concat($2, "\",");
+        });
+      } else {
+        staticAttrs += "\"".concat(name, "\":\"").concat(value, "\",");
+      }
+    });
+    staticStyle = staticStyle.slice(0, -1);
+    staticAttrs = staticAttrs.slice(0, -1);
+
+    if (staticStyle && staticAttrs) {
+      return "{attrs:{".concat(staticAttrs, ",staticStyle:").concat(staticStyle, "}}");
+    } else if (staticStyle) {
+      return "{staticStyle:{".concat(staticStyle, "}}");
+    } else {
+      return "{attrs:{".concat(staticAttrs, "}}");
+    }
+  };
+
+  var genChildren = function genChildren(children) {
+    var childrenCode = '';
+    each(children, function (_, child) {
+      childrenCode += "".concat(genNode(child), ",");
+    });
+    return "[".concat(childrenCode.slice(0, -1), "]");
+  };
+
+  var genNode = function genNode(ast) {
+    if (ast.type === 1) {
+      return genElement(ast);
+    } else {
+      return genText(ast);
+    }
+  };
+
+  var genElement = function genElement(ast) {
+    return generate(ast);
+  }; // {{}}
+
+
+  var defaultTagRE = /\{\{((?:.|\r?\n)+?)\}\}/g;
+
+  var genText = function genText(ast) {
+    var text = ast.text;
+
+    if (!defaultTagRE.test(text)) {
+      return "_v(".concat(text, ")");
+    }
+
+    defaultTagRE.lastIndex = 0;
+    var token = [];
+    var lastIndex = 0;
+    var index = 0;
+    var matched = null;
+    var tokenVal = null;
+
+    while (matched = defaultTagRE.exec(text)) {
+      index = matched.index; // {
+
+      tokenVal = text.slice(lastIndex, index);
+
+      if (tokenVal) {
+        token.push(JSON.stringify(tokenVal));
+      }
+
+      tokenVal = matched[1].trim();
+
+      if (tokenVal) {
+        token.push("_s(".concat(tokenVal, ")"));
+      }
+
+      lastIndex = index + matched[0].length;
+    }
+
+    if (lastIndex < text.length) {
+      token.push(JSON.stringify(text.slice(lastIndex)));
+    }
+
+    return "_v(".concat(token.join('+'), ")");
+  };
+
   // 标签名
   var ncname = "[a-zA-Z_][\\-\\.0-9_a-zA-Z]*"; // 标签名或带命名空间的标签名 div div:xxx
 
@@ -67,7 +232,7 @@
         };
         advance(matched[0].length);
         var attr = null;
-        var _end = null; // 结束的地方肯定没有属性了，attr 为 false。要是 html.match(startTagClose)
+        var _end = null; // 结束的地方肯定没有属性了，attr 为 false，要是 html.match(startTagClose)
         // 在后面不会执行。
 
         while (!(_end = html.match(startTagClose)) && (attr = html.match(attribute))) {
@@ -157,57 +322,8 @@
   };
 
   var compileToFunctions = function compileToFunctions(template) {
-    parseHTML(template);
-  };
-
-  var has = function has(target, prop) {
-    return target.hasOwnProperty(prop);
-  };
-
-  var def = function def(obj, key, val, enumerable) {
-    Object.defineProperty(obj, key, {
-      value: val,
-      enumerable: !!enumerable,
-      writable: true,
-      configurable: true
-    });
-  };
-
-  var isArray = function isArray(v) {
-    return Array.isArray(v);
-  };
-
-  var isPlainObject = function isPlainObject(v) {
-    return Object.prototype.toString.call(v).slice(8, -1) === 'Object';
-  };
-
-  var keys = function keys(target) {
-    if (isArray(target)) {
-      return Object.keys(target);
-    } else if (isPlainObject(target)) {
-      return Object.getOwnPropertySymbols(target).concat(Object.keys(target));
-    }
-  };
-
-  var each = function each(target, fn) {
-    var _keys = keys(target);
-
-    for (var i = 0, l = _keys.length; i < l; i++) {
-      var key = _keys[i];
-      fn.call(target, key, target[key]);
-    }
-  };
-
-  var isObject = function isObject(v) {
-    return v !== null && _typeof(v) === 'object';
-  };
-
-  var isFunction = function isFunction(v) {
-    return typeof v === 'function';
-  };
-
-  var isInstance = function isInstance(a, b) {
-    return a instanceof b;
+    var ast = parseHTML(template);
+    generate(ast);
   };
 
   var arrayProto = Array.prototype;
