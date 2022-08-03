@@ -48,19 +48,11 @@
 
   var startTagClose = /^\s*(\/?)>/; // 结束标签 div
 
+  var endTag = new RegExp("^<\\/" + qnameCapture + "[^>]*>"); // 属性
+
   var attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
 
   var parseHTML = function parseHTML(html) {
-    //   let textEnd = html.indexOf('<')
-    //   if (textEnd === 0) {
-    //     const match = parseStartTag(html)
-    //     if (match) {
-    //       start()
-    //       continue
-    //     }
-    //   }
-    // }
-
     var advance = function advance(n) {
       html = html.substring(n);
     };
@@ -75,10 +67,10 @@
         };
         advance(matched[0].length);
         var attr = null;
-        var end = null; // 结束的地方肯定没有属性了，attr 为 false。要是 html.match(startTagClose)
+        var _end = null; // 结束的地方肯定没有属性了，attr 为 false。要是 html.match(startTagClose)
         // 在后面不会执行。
 
-        while (!(end = html.match(startTagClose)) && (attr = html.match(attribute))) {
+        while (!(_end = html.match(startTagClose)) && (attr = html.match(attribute))) {
           match.attrs.push({
             name: attr[1],
             value: attr[3]
@@ -86,12 +78,82 @@
           advance(attr[0].length);
         }
 
-        advance(end[0].length);
+        advance(_end[0].length);
         return match;
       }
     };
 
-    parseStartTag();
+    var start = function start(match) {
+      var ast = createASTElement(match);
+
+      if (!root) {
+        root = ast;
+        stack.push(ast);
+      } else {
+        parent = stack[stack.length - 1];
+        ast.parent = parent;
+        parent.children.push(ast);
+        stack.push(ast);
+      }
+    };
+
+    var end = function end() {
+      stack.pop();
+    };
+
+    var chars = function chars(text) {
+      text = text.trim();
+
+      if (text) {
+        parent = stack[stack.length - 1];
+        parent.children.push({
+          type: 3,
+          text: text
+        });
+      }
+    };
+
+    var createASTElement = function createASTElement(match) {
+      return {
+        type: 1,
+        tag: match.tagName,
+        attrs: match.attrs,
+        children: [],
+        parent: undefined
+      };
+    };
+
+    var stack = [];
+    var root = null;
+
+    while (html) {
+      var textEnd = html.indexOf('<');
+
+      if (textEnd === 0) {
+        var startMatched = parseStartTag();
+
+        if (startMatched) {
+          start(startMatched);
+          continue;
+        }
+
+        var endMatched = html.match(endTag);
+
+        if (endMatched) {
+          end();
+          advance(endMatched[0].length);
+          continue;
+        }
+      }
+
+      if (textEnd > 0) {
+        var text = html.slice(0, textEnd);
+        chars(text);
+        advance(textEnd);
+      }
+    }
+
+    return root;
   };
 
   var compileToFunctions = function compileToFunctions(template) {

@@ -1,34 +1,18 @@
 // 标签名
-var ncname = "[a-zA-Z_][\\-\\.0-9_a-zA-Z]*"
+const ncname = "[a-zA-Z_][\\-\\.0-9_a-zA-Z]*"
 // 标签名或带命名空间的标签名 div div:xxx
-var qnameCapture = "((?:" + ncname + "\\:)?" + ncname + ")"
+const qnameCapture = "((?:" + ncname + "\\:)?" + ncname + ")"
 // 开始标签 div 
-var startTagOpen = new RegExp(("^<" + qnameCapture))
+const startTagOpen = new RegExp(("^<" + qnameCapture))
 // 开始标签的闭合 > 或 />
-var startTagClose = /^\s*(\/?)>/
+const startTagClose = /^\s*(\/?)>/
 // 结束标签 div
-var endTag = new RegExp(("^<\\/" + qnameCapture + "[^>]*>"))
+const endTag = new RegExp(("^<\\/" + qnameCapture + "[^>]*>"))
 // 属性
-var attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/
+const attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/
 
-const parseHTML = (html) => {
-  const stack = []
-  let root = null
-
-  // while (html) {
-  //   let textEnd = html.indexOf('<')
-
-  //   if (textEnd === 0) {
-  //     const match = parseStartTag(html)
-
-  //     if (match) {
-  //       start()
-  //       continue
-  //     }
-  //   }
-  // }
-
-  const advance = (n) => {
+const parseHTML = html => {
+  const advance = n => {
     html = html.substring(n)
   }
   
@@ -63,11 +47,77 @@ const parseHTML = (html) => {
     }
   }
 
-  const start = () => {
+  const start = match => {
+    const ast = createASTElement(match)
 
+    if (!root) {
+      root = ast
+      stack.push(ast)
+    } else {
+      parent = stack[stack.length - 1]
+      ast.parent = parent
+      parent.children.push(ast)
+      stack.push(ast)
+    }
   }
 
-  parseStartTag()
+  const end = () => {
+    stack.pop()
+  }
+
+  const chars = text => {
+    text = text.trim()
+    
+    if (text) {
+      parent = stack[stack.length - 1]
+      parent.children.push({
+        type: 3,
+        text: text
+      })
+    }
+  }
+
+  const createASTElement = match => {
+    return {
+      type: 1,
+      tag: match.tagName,
+      attrs: match.attrs,
+      children: [],
+      parent: undefined
+    }
+  }
+
+  const stack = []
+  let root = null
+
+  while (html) {
+    let textEnd = html.indexOf('<')
+
+    if (textEnd === 0) {
+      const startMatched = parseStartTag(html)
+
+      if (startMatched) {
+        start(startMatched)
+        continue
+      }
+
+      const endMatched = html.match(endTag)
+
+      if (endMatched) {
+        end()
+        advance(endMatched[0].length)
+        continue
+      }
+    }
+
+    if (textEnd > 0) {
+      const text = html.slice(0, textEnd)
+      chars(text)
+      advance(textEnd)
+    }
+  }
+
+  return root
 }
 
 export default parseHTML
