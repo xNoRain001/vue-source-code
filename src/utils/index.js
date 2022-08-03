@@ -2,6 +2,8 @@ import has from "./has"
 import def from "./def"
 import each from "./each"
 import keys from "./keys"
+import isDef from "./is-def"
+import isUndef from "./is-undef"
 import isArray from "./is-array"
 import isObject from "./is-object"
 import isFunction from "./is-function"
@@ -13,6 +15,8 @@ export {
   def,
   each,
   keys,
+  isDef,
+  isUndef,
   isArray,
   isObject,
   isFunction,

@@ -1,6 +1,6 @@
 import { isArray } from "../utils"
 
-const craeteNode = function (tag, data, children, text, key, elm) {
+const createVnode = function (tag, data, children, text, key, elm) {
   if (isArray(data)) {
     children = data
     data = ''
@@ -16,4 +16,4 @@ const craeteNode = function (tag, data, children, text, key, elm) {
   }
 }
 
-export default craeteNode
+export default createVnode

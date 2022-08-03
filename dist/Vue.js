@@ -77,6 +77,14 @@
     }
   };
 
+  var isDef = function isDef(v) {
+    return v != null;
+  };
+
+  var isUndef = function isUndef(v) {
+    return v == null;
+  };
+
   var isObject = function isObject(v) {
     return v !== null && _typeof(v) === 'object';
   };
@@ -508,7 +516,7 @@
     };
   };
 
-  var craeteNode = function craeteNode(tag, data, children, text, key, elm) {
+  var createVnode = function createVnode(tag, data, children, text, key, elm) {
     if (isArray(data)) {
       children = data;
       data = '';
@@ -524,12 +532,12 @@
     };
   };
 
-  var createTextNode = function createTextNode(text) {
-    return craeteNode(undefined, undefined, undefined, text);
+  var createTextVnode = function createTextVnode(text) {
+    return createVnode(undefined, undefined, undefined, text);
   };
 
-  var createElementNode = function createElementNode(tag, data, children) {
-    return craeteNode(tag, data, children);
+  var createElementVnode = function createElementVnode(tag, data, children) {
+    return createVnode(tag, data, children);
   };
 
   var renderMix = function renderMix(Vue) {
@@ -540,11 +548,11 @@
     };
 
     Vue.prototype._c = function (tag, data, children) {
-      return createElementNode(tag, data, children);
+      return createElementVnode(tag, data, children);
     };
 
     Vue.prototype._v = function (text) {
-      return createTextNode(text);
+      return createTextVnode(text);
     };
 
     Vue.prototype._s = function (val) {
@@ -552,7 +560,49 @@
     };
   };
 
-  var patch = function patch(prevVnode, vnode) {// console.log(prevVnode, vnode)
+  var createText = function createText(text) {
+    return document.createTextNode(text);
+  };
+
+  var createElement = function createElement(tag) {
+    return document.createElement(tag);
+  };
+
+  var createElm = function createElm(vnode) {
+    var tag = vnode.tag,
+        text = vnode.text;
+        vnode.data;
+        var children = vnode.children;
+    var elm = null;
+
+    if (isDef(tag)) {
+      // element
+      elm = vnode.elm = createElement(tag);
+      each(children, function (_, child) {
+        elm.appendChild(createElm(child));
+      });
+    } else {
+      // text
+      elm = vnode.elm = createText(text);
+    }
+
+    return elm;
+  };
+
+  var patch = function patch(oldVnode, vnode) {
+    if (isUndef(oldVnode)) {
+      // render component
+      return;
+    }
+
+    if (isDef(oldVnode.nodeType)) {
+      // init render
+      var elm = createElm(vnode);
+      var body = oldVnode.parentNode;
+      body.insertBefore(elm, oldVnode.nextSibling);
+      body.removeChild(oldVnode);
+      return elm;
+    }
   };
 
   var lifecycleMixin = function lifecycleMixin(Vue) {
@@ -562,9 +612,9 @@
       vm._vnode = vnode;
 
       if (!prevVnode) {
-        vm.$el = patch(vm.$el);
+        vm.$el = patch(vm.$el, vnode);
       } else {
-        vm.$el = patch();
+        vm.$el = patch(prevVnode, vnode);
       }
     };
   };
