@@ -1,4 +1,4 @@
-import { initMixin, renderMix, lifecycleMixin } from "./init"
+import { initProto } from "./init"
 
 class Vue {
   constructor (opts = {}) {
@@ -8,8 +8,6 @@ class Vue {
   }
 }
 
-initMixin(Vue) // _init、$mount
-renderMix(Vue) // _render、_c、_v、_s
-lifecycleMixin(Vue) // _update
+initProto(Vue)
 
 export default Vue
