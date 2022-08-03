@@ -1,4 +1,4 @@
-import observe from "../../observer"
+import observe from "../../observer/observe"
 import { 
   each,
   isFunction, 

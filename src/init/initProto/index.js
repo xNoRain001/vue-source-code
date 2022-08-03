@@ -1,6 +1,7 @@
+import Watcher from '../../observer/watcher'
 import initState from '../initState'
 import compileToFunctions from '../../compiler'
-import { isObject } from '../../utils'
+import { noop, isObject } from '../../utils'
 import { patch, createTextVnode, createElementVnode } from '../../vdom'
 
 const initProto = Vue => {
@@ -27,7 +28,11 @@ const initProto = Vue => {
   }
 
   const mountComponent = (vm) => {
-    vm._update(vm._render())
+    const updateComponent = () => {
+      vm._update(vm._render())
+    }
+
+    new Watcher(vm, updateComponent, noop)
   }
 
   Vue.prototype._update = function (vnode) {
@@ -35,12 +40,13 @@ const initProto = Vue => {
     const prevVnode = vm._vnode
 
     vm._vnode = vnode
+    vm.$el = patch(vm.$el, vnode)
 
-    if (!prevVnode) {
-      vm.$el = patch(vm.$el, vnode)
-    } else {
-      vm.$el = patch(prevVnode, vnode)
-    }
+    // if (!prevVnode) {
+    //   vm.$el = patch(vm.$el, vnode)
+    // } else {
+    //   vm.$el = patch(prevVnode, vnode)
+    // }
   }
 
   Vue.prototype._render = function () {

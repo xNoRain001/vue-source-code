@@ -2,6 +2,7 @@ import has from "./has"
 import def from "./def"
 import each from "./each"
 import keys from "./keys"
+import noop from "./noop"
 import isDef from "./is-def"
 import isUndef from "./is-undef"
 import isArray from "./is-array"
@@ -15,6 +16,7 @@ export {
   def,
   each,
   keys,
+  noop,
   isDef,
   isUndef,
   isArray,

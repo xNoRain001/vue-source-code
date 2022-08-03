@@ -32,6 +32,7 @@ each(methods, (_, method) => {
     }
 
     context.__ob__.observeArray(inserted)
+    // context.__ob__.dep.notify()
 
     return result
   }

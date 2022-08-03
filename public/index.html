@@ -19,10 +19,13 @@
       data () {
         return {
           foo: 'foo',
-          bar: 'bar'
+          bar: []
         }
       }
     })
+    setTimeout(() => {
+      vm.bar.push(2)
+    }, 1000);
   </script>
 </body>
 </html>

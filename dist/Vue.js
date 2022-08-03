@@ -77,6 +77,8 @@
     }
   };
 
+  var noop = function noop() {};
+
   var isDef = function isDef(v) {
     return v != null;
   };
@@ -127,29 +129,67 @@
           }
       }
 
-      context.__ob__.observeArray(inserted);
+      context.__ob__.observeArray(inserted); // context.__ob__.dep.notify()
+
 
       return result;
     };
   });
 
-  var observe = function observe(v) {
-    // 原始值不用处理
-    if (!isObject(v)) {
-      return;
+  var id$1 = 1;
+
+  var Dep = /*#__PURE__*/function () {
+    function Dep() {
+      _classCallCheck(this, Dep);
+
+      this.id = id$1++;
+      this.subs = [];
     }
 
-    var ob = null; // 只是不想 ob = v.__ob__，这样就访问两次这个属性了。
+    _createClass(Dep, [{
+      key: "addSub",
+      value: function addSub(watcher) {
+        this.subs.push(watcher);
+      }
+    }, {
+      key: "depend",
+      value: function depend(watcher) {
+        watcher.addDep(this);
+      }
+    }, {
+      key: "notify",
+      value: function notify() {
+        each(this.subs, function (_, watcher) {
+          watcher.update();
+        });
+      }
+    }]);
 
-    var _ob = null;
+    return Dep;
+  }();
 
-    if (has(v, '__ob__') && isInstance(_ob = v.__ob__, Observer)) {
-      ob = _ob;
-    } else if (isArray(v) || isPlainObject(v)) {
-      ob = new Observer(v);
-    }
+  var defineReactive = function defineReactive(obj, key, val) {
+    var dep = new Dep(); // 所有层次的对象的属性
 
-    return ob;
+    observe(val);
+    Object.defineProperty(obj, key, {
+      get: function get() {
+        var target = Dep.target;
+
+        if (target) {
+          dep.depend(target);
+        }
+
+        return val;
+      },
+      set: function set(newVal) {
+        if (newVal !== val) {
+          val = newVal;
+          dep.notify();
+          observe(newVal);
+        }
+      }
+    });
   };
 
   var Observer = /*#__PURE__*/function () {
@@ -181,23 +221,25 @@
     }]);
 
     return Observer;
-  }(); // 实现响应式
+  }();
 
+  var observe = function observe(v) {
+    // 原始值不用处理
+    if (!isObject(v)) {
+      return;
+    }
 
-  var defineReactive = function defineReactive(obj, key, val) {
-    // 所有层次的对象的属性
-    observe(val);
-    Object.defineProperty(obj, key, {
-      get: function get() {
-        return val;
-      },
-      set: function set(newVal) {
-        if (newVal !== val) {
-          val = newVal;
-          observe(newVal);
-        }
-      }
-    });
+    var ob = null; // 只是不想 ob = v.__ob__，这样就访问两次这个属性了。
+
+    var _ob = null;
+
+    if (has(v, '__ob__') && isInstance(_ob = v.__ob__, Observer)) {
+      ob = _ob;
+    } else if (isArray(v) || isPlainObject(v)) {
+      ob = new Observer(v);
+    }
+
+    return ob;
   };
 
   var initData = function initData(vm) {
@@ -251,6 +293,57 @@
       initMethods(vm);
     }
   };
+
+  var pushTarget = function pushTarget(target) {
+    Dep.target = target;
+  };
+
+  var popTarget = function popTarget() {
+    Dep.target = null;
+  };
+
+  var id = 1;
+
+  var Watcher = /*#__PURE__*/function () {
+    function Watcher(vm, expOrFn, cb, options) {
+      _classCallCheck(this, Watcher);
+
+      this.id = id++;
+      this.vm = vm;
+      this.cb = cb;
+      this.deps = [];
+      this.depIds = new Set();
+      this.getter = expOrFn;
+      this.get();
+    }
+
+    _createClass(Watcher, [{
+      key: "get",
+      value: function get() {
+        pushTarget(this);
+        this.getter();
+        popTarget();
+      }
+    }, {
+      key: "update",
+      value: function update() {
+        this.get();
+      }
+    }, {
+      key: "addDep",
+      value: function addDep(dep) {
+        var id = dep.id;
+
+        if (!this.depIds.has(id)) {
+          this.deps.push(dep);
+          this.depIds.add(id);
+          dep.addSub(this);
+        }
+      }
+    }]);
+
+    return Watcher;
+  }();
 
   var genProps = function genProps(attrs) {
     var staticStyle = '';
@@ -581,19 +674,22 @@
     };
 
     var mountComponent = function mountComponent(vm) {
-      vm._update(vm._render());
+      var updateComponent = function updateComponent() {
+        vm._update(vm._render());
+      };
+
+      new Watcher(vm, updateComponent, noop);
     };
 
     Vue.prototype._update = function (vnode) {
       var vm = this;
-      var prevVnode = vm._vnode;
+      vm._vnode;
       vm._vnode = vnode;
-
-      if (!prevVnode) {
-        vm.$el = patch(vm.$el, vnode);
-      } else {
-        vm.$el = patch(prevVnode, vnode);
-      }
+      vm.$el = patch(vm.$el, vnode); // if (!prevVnode) {
+      //   vm.$el = patch(vm.$el, vnode)
+      // } else {
+      //   vm.$el = patch(prevVnode, vnode)
+      // }
     };
 
     Vue.prototype._render = function () {

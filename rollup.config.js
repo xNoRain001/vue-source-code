@@ -15,6 +15,11 @@ export default {
       exclude: 'node_modules/**'
     }),
     resolve({})
+  ],
 
-  ]
+  onwarn (warning) {
+    if (warning.code === 'CIRCULAR_DEPENDENCY') {
+      return
+    }
+  }
 }
