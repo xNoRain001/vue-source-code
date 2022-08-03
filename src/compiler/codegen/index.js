@@ -47,7 +47,7 @@ const genProps = attrs => {
   staticAttrs = staticAttrs.slice(0, -1)
 
   if (staticStyle && staticAttrs) {
-    return `{attrs:{${ staticAttrs },staticStyle:${ staticStyle }}}`
+    return `{attrs:{${ staticAttrs }},staticStyle:{${ staticStyle }}}`
   }
   else if (staticStyle) {
     return `{staticStyle:{${ staticStyle }}}`

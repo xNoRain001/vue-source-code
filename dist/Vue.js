@@ -134,7 +134,7 @@
     staticAttrs = staticAttrs.slice(0, -1);
 
     if (staticStyle && staticAttrs) {
-      return "{attrs:{".concat(staticAttrs, ",staticStyle:").concat(staticStyle, "}}");
+      return "{attrs:{".concat(staticAttrs, "},staticStyle:{").concat(staticStyle, "}}");
     } else if (staticStyle) {
       return "{staticStyle:{".concat(staticStyle, "}}");
     } else {
@@ -323,7 +323,8 @@
 
   var compileToFunctions = function compileToFunctions(template) {
     var ast = parseHTML(template);
-    generate(ast);
+    var code = generate(ast);
+    return new Function("with (this) { return ".concat(code, " }"));
   };
 
   var arrayProto = Array.prototype;
@@ -502,6 +503,22 @@
     };
   };
 
+  var renderMix = function renderMix(Vue) {
+    Vue.prototype.render = function () {
+      var vm = this;
+      var render = vm.$options.render;
+      return render.call(vm); // Vnode
+    };
+
+    Vue.prototype._c = function () {};
+
+    Vue.prototype._v = function () {};
+
+    Vue.prototype._s = function (val) {
+      return isObject(val) ? JSON.stringify(val) : val;
+    };
+  };
+
   var Vue = /*#__PURE__*/_createClass(function Vue() {
     var opts = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
@@ -513,6 +530,8 @@
   });
 
   initMixin(Vue); // _init、$mount
+
+  renderMix(Vue); // _render、_c、_v、_s
 
   return Vue;
 
