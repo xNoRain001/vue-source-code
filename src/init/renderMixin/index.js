@@ -1,19 +1,20 @@
 import { isObject } from "../../utils"
+import { createTextNode, createElementNode } from "../../vdom"
 
 const renderMix = Vue => {
-  Vue.prototype.render = function () {
+  Vue.prototype._render = function () {
     const vm = this
     const { render } = vm.$options
 
     return render.call(vm) // Vnode
   }
 
-  Vue.prototype._c = () => {
-    
+  Vue.prototype._c = (tag, data, children) => {
+    return createElementNode(tag, data, children)
   }
 
-  Vue.prototype._v = () => {
-    
+  Vue.prototype._v = text => {
+    return createTextNode(text)
   }
 
   Vue.prototype._s = val => {

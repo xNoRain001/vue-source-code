@@ -500,22 +500,72 @@
 
       var render = compileToFunctions(template);
       vm.$options.render = render;
+      mountComponent(vm);
+    };
+
+    var mountComponent = function mountComponent(vm) {
+      vm._update(vm._render());
     };
   };
 
+  var craeteNode = function craeteNode(tag, data, children, text, key, elm) {
+    if (isArray(data)) {
+      children = data;
+      data = '';
+    }
+
+    return {
+      tag: tag,
+      data: data,
+      children: children,
+      text: text,
+      key: key,
+      elm: elm
+    };
+  };
+
+  var createTextNode = function createTextNode(text) {
+    return craeteNode(undefined, undefined, undefined, text);
+  };
+
+  var createElementNode = function createElementNode(tag, data, children) {
+    return craeteNode(tag, data, children);
+  };
+
   var renderMix = function renderMix(Vue) {
-    Vue.prototype.render = function () {
+    Vue.prototype._render = function () {
       var vm = this;
       var render = vm.$options.render;
       return render.call(vm); // Vnode
     };
 
-    Vue.prototype._c = function () {};
+    Vue.prototype._c = function (tag, data, children) {
+      return createElementNode(tag, data, children);
+    };
 
-    Vue.prototype._v = function () {};
+    Vue.prototype._v = function (text) {
+      return createTextNode(text);
+    };
 
     Vue.prototype._s = function (val) {
       return isObject(val) ? JSON.stringify(val) : val;
+    };
+  };
+
+  var patch = function patch(prevVnode, vnode) {// console.log(prevVnode, vnode)
+  };
+
+  var lifecycleMixin = function lifecycleMixin(Vue) {
+    Vue.prototype._update = function (vnode) {
+      var vm = this;
+      var prevVnode = vm._vnode;
+      vm._vnode = vnode;
+
+      if (!prevVnode) {
+        vm.$el = patch(vm.$el);
+      } else {
+        vm.$el = patch();
+      }
     };
   };
 
@@ -532,6 +582,8 @@
   initMixin(Vue); // _init、$mount
 
   renderMix(Vue); // _render、_c、_v、_s
+
+  lifecycleMixin(Vue); // _update
 
   return Vue;
 

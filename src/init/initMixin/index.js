@@ -20,6 +20,12 @@ const initMixin = (Vue) => {
     // HTML => render
     const render = compileToFunctions(template)
     vm.$options.render = render
+
+    mountComponent(vm)
+  }
+
+  const mountComponent = (vm) => {
+    vm._update(vm._render())
   }
 }
 

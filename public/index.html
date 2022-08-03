@@ -15,7 +15,13 @@
   <script src="../dist/Vue.js"></script>
   <script>
     const vm = new Vue({
-      el: '#app'
+      el: '#app',
+      data () {
+        return {
+          foo: 'foo',
+          bar: 'bar'
+        }
+      }
     })
   </script>
 </body>
