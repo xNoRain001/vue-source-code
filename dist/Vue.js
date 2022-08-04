@@ -644,6 +644,131 @@
     return elm;
   };
 
+  var sameVnode = function sameVnode(a, b) {
+    return a.tag === b.tag && a.key === b.key;
+  };
+
+  var findIdxInOld = function findIdxInOld(ch, startIdx, endIdx, vnode) {
+    for (var i = startIdx; i <= endIdx; i++) {
+      var c = ch[i];
+
+      if (isDef(c) && sameVnode(c, vnode)) {
+        return i;
+      }
+    }
+  };
+
+  var createKeyToOldIdx = function createKeyToOldIdx(ch, startIdx, endIdx) {
+    var map = {};
+
+    for (var i = startIdx; i <= endIdx; i++) {
+      var c = ch[i];
+
+      if (isDef(c) && isDef(c.key)) {
+        map[key] = i;
+      }
+    }
+
+    return map;
+  };
+
+  var updateChildren = function updateChildren(parentElm, oldCh, ch) {
+    var oldStartIdx = 0;
+    var oldEndIdx = oldCh.length - 1;
+    var oldStartVnode = oldCh[0];
+    var oldEndVnode = oldCh[oldEndIdx];
+    var newStartIdx = 0;
+    var newEndIdx = ch.length - 1;
+    var newStartVnode = ch[0];
+    var newEndVnode = ch[newEndIdx];
+    var oldKeyToIdx = null;
+    var idxInOld = null;
+    var vnodeToMove = null;
+
+    while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
+      if (isUndef(oldStartVnode)) {
+        oldEndVnode = oldCh[++oldStartIdx];
+      } else if (isUndef(oldEndVnode)) {
+        oldEndVnode = oldCh[--oldEndIdx];
+      } else if (sameVnode(oldStartVnode, newStartVnode)) {
+        patchVnode(oldStartVnode, newStartVnode);
+        oldStartVnode = oldCh[++oldStartIdx];
+        newStartVnode = ch[++newStartIdx];
+      } else if (sameVnode(oldEndVnode, newEndVnode)) {
+        patchVnode(oldEndVnode, newEndVnode);
+        oldEndVnode = oldCh[--oldEndIdx];
+        newEndVnode = ch[--newEndIdx];
+      } else if (sameVnode(oldStartVnode, newEndVnode)) {
+        patchVnode(oldStartVnode, newEndVnode);
+        oldStartVnode = oldCh[++oldStartIdx];
+        newEndVnode = ch[--newEndIdx];
+      } else if (sameVnode(oldEndVnode, newStartVnode)) {
+        patchVnode(oldEndVnode, newStartVnode);
+        oldEndVnode = oldCh[--oldEndIdx];
+        newStartVnode = ch[++newStartIdx];
+      } else {
+        if (isUndef(oldKeyToIdx)) {
+          oldKeyToIdx = createKeyToOldIdx(oldCh, oldStartIdx, oldEndIdx);
+        }
+
+        var _newStartVnode = newStartVnode,
+            key = _newStartVnode.key;
+        idxInOld = isDef(key) ? oldKeyToIdx[key] : findIdxInOld(oldCh, oldStartIdx, oldEndIdx, newStartVnode);
+
+        if (isDef(idxInOld)) {
+          vnodeToMove = oldCh[idxInOld];
+
+          if (sameVnode(vnodeToMove, newStartVnode)) {
+            patchVnode(vnodeToMove, newStartVnode);
+          }
+
+          oldCh[idxInOld] = undefined;
+          parentElm.insertBefote(vnodeToMove.elm, oldStartVnode.elm);
+        } else {
+          parentElm.insertBefote(createElm(newStartVnode), oldStartVnode.elm);
+        }
+
+        newStartVnode = ch[++newStartIdx];
+      }
+    }
+
+    if (oldStartIdx > oldEndIdx) {
+      var refElm = isDef(ch[newEndIdx + 1]) ? ch[newEndIdx + 1].elm : null;
+
+      for (var i = newStartIdx; i <= newEndIdx; i++) {
+        parentElm.insertBefote(createElm(ch[i]), refElm);
+      }
+    } else if (newStartIdx > newEndIdx) {
+      for (var _i = oldStartIdx; _i <= oldEndIdx; _i++) {
+        if (isDef(oldCh[_i])) {
+          parentElm.removeChild(oldCh[_i].elm);
+        }
+      }
+    }
+  };
+
+  var patchVnode = function patchVnode(oldVnode, vnode) {
+    var elm = vnode.elm = oldVnode.elm; // text
+
+    if (oldVnode.text && oldVnode.text !== vnode.text) {
+      elm.textContent = vnode.text;
+    } // element
+    else {
+      var oldCh = oldVnode.children;
+      var ch = vnode.children;
+
+      if (isDef(oldCh) && isDef(ch) && oldCh !== ch) {
+        updateChildren(elm, oldCh, ch);
+      } else if (isDef(oldCh)) {
+        elm.innerHTML = '';
+      } else if (isDef(ch)) {
+        each(ch, function (_, c) {
+          elm.appendChild(createElm(c));
+        });
+      }
+    }
+  };
+
   var patch = function patch(oldVnode, vnode) {
     if (isUndef(oldVnode)) {
       // render component
@@ -657,6 +782,9 @@
       body.insertBefore(elm, oldVnode.nextSibling);
       body.removeChild(oldVnode);
       return elm;
+    } else if (sameVnode(oldVnode, vnode)) {
+      // diff
+      patchVnode(oldVnode, vnode);
     }
   };
 
@@ -729,7 +857,7 @@
     } else if (staticStyle) {
       return "{staticStyle:{".concat(staticStyle, "}}");
     } else {
-      return "{attrs:{".concat(staticAttrs, "}}");
+      return '';
     }
   };
 
@@ -744,7 +872,7 @@
     var text = ast.text;
 
     if (!defaultTagRE.test(text)) {
-      return "_v(".concat(text, ")");
+      return "_v(".concat(JSON.stringify(text), ")");
     }
 
     defaultTagRE.lastIndex = 0;
@@ -976,13 +1104,14 @@
 
   var _update = function _update(vnode) {
     var vm = this;
-    vm._vnode;
+    var prevVnode = vm._vnode;
     vm._vnode = vnode;
-    vm.$el = patch(vm.$el, vnode); // if (!prevVnode) {
-    //   vm.$el = patch(vm.$el, vnode)
-    // } else {
-    //   vm.$el = patch(prevVnode, vnode)
-    // }
+
+    if (!prevVnode) {
+      vm.$el = patch(vm.$el, vnode);
+    } else {
+      vm.$el = patch(prevVnode, vnode);
+    }
   };
 
   var _render = function _render() {

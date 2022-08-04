@@ -1,5 +1,7 @@
-import { isDef, isUndef } from "../utils"
 import createElm from "./create-elm"
+import sameVnode from "./same-vnode"
+import patchVnode from "./patch-vnode"
+import { isDef, isUndef } from "../utils"
 
 const patch = (oldVnode, vnode) => {
   if (isUndef(oldVnode)) {
@@ -17,6 +19,9 @@ const patch = (oldVnode, vnode) => {
     body.removeChild(oldVnode)
     
     return elm
+  } else if (sameVnode(oldVnode, vnode)) {
+    // diff
+    patchVnode(oldVnode, vnode)
   }
 }
 

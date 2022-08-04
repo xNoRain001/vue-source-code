@@ -9,3 +9,5 @@ Just writing Vue source code for better understanding.
 - watch
 
 - computed
+
+- diff

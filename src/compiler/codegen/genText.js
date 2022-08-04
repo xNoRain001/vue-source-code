@@ -4,7 +4,7 @@ const genText = ast => {
   let { text } = ast
 
   if (!defaultTagRE.test(text)) {
-    return `_v(${ text })`
+    return `_v(${ JSON.stringify(text) })`
   }
 
   defaultTagRE.lastIndex = 0

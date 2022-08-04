@@ -26,7 +26,7 @@ const genProps = attrs => {
     return `{staticStyle:{${ staticStyle }}}`
   }
   else {
-    return `{attrs:{${ staticAttrs }}}`
+    return ''
   }
 }
 
