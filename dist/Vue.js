@@ -107,6 +107,34 @@
     return v !== null && _typeof(v) === 'object';
   };
 
+  var callbacks = [];
+  var pending = false;
+
+  var timerFunc = function timerFunc() {
+    Promise.resolve().then(flushCallbacks);
+  };
+
+  var flushCallbacks = function flushCallbacks() {
+    each(callbacks, function (_, cb) {
+      cb();
+    });
+    resetState$1();
+  };
+
+  var nextTick = function nextTick(cb) {
+    callbacks.push(cb);
+
+    if (!pending) {
+      timerFunc();
+      pending = true;
+    }
+  };
+
+  var resetState$1 = function resetState() {
+    callbacks = [];
+    pending = true;
+  };
+
   var isFunction = function isFunction(v) {
     return typeof v === 'function';
   };
@@ -453,6 +481,37 @@
     };
   };
 
+  var wathcerIds = new Set();
+  var queue = [];
+  var waiting = false;
+
+  var queueWatcher = function queueWatcher(watcher) {
+    var id = watcher.id;
+
+    if (!wathcerIds.has(id)) {
+      wathcerIds.add(id);
+      queue.push(watcher);
+    }
+
+    if (!waiting) {
+      nextTick(flushSchedulerQueue);
+      waiting = true;
+    }
+  };
+
+  var flushSchedulerQueue = function flushSchedulerQueue() {
+    each(queue, function (_, watcher) {
+      watcher.run();
+    });
+    resetState();
+  };
+
+  var resetState = function resetState() {
+    wathcerIds = new Set();
+    queue = [];
+    waiting = false;
+  };
+
   var pushTarget = function pushTarget(target) {
     Dep.target = target;
   };
@@ -500,6 +559,12 @@
     }, {
       key: "update",
       value: function update() {
+        queueWatcher(this);
+      }
+    }, {
+      key: "run",
+      value: function run() {
+        console.log('#');
         var oldVal = this.value;
         var newVal = this.value = this.get();
 

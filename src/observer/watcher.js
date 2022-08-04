@@ -1,4 +1,5 @@
 import parsePath from "./parse-path"
+import queueWatcher from "./queue-watcher"
 import { isFunction } from "../utils"
 import { popTarget, pushTarget } from "./handle-target"
 
@@ -36,6 +37,11 @@ class Watcher {
   }
 
   update () {
+    queueWatcher(this)
+  }
+
+  run () {
+    console.log('#')
     const oldVal = this.value
     const newVal = this.value = this.get()
 

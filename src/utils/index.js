@@ -8,6 +8,7 @@ import isUndef from "./is-undef"
 import isArray from "./is-array"
 import isString from "./is-string"
 import isObject from "./is-object"
+import nextTick from "./next-tick"
 import isFunction from "./is-function"
 import isInstance from "./is-instance"
 import isPlainObject from "./is-plain-object"
@@ -23,6 +24,7 @@ export {
   isArray,
   isString,
   isObject,
+  nextTick,
   isFunction,
   isInstance,
   isPlainObject
