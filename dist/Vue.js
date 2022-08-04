@@ -528,8 +528,10 @@
 
       if (options) {
         this.user = options.user;
+        this.sync = options.sync;
+        this.deep = options.deep;
       } else {
-        this.user = false;
+        this.user = this.sync = this.depp = false;
       }
 
       this.id = id++;
@@ -559,12 +561,15 @@
     }, {
       key: "update",
       value: function update() {
-        queueWatcher(this);
+        if (this.sync) {
+          this.run();
+        } else {
+          queueWatcher(this);
+        }
       }
     }, {
       key: "run",
       value: function run() {
-        console.log('#');
         var oldVal = this.value;
         var newVal = this.value = this.get();
 

@@ -9,8 +9,10 @@ class Watcher {
   constructor (vm, expOrFn, cb, options) {
     if (options) {
       this.user = options.user
+      this.sync = options.sync
+      this.deep = options.deep
     } else {
-      this.user = false
+      this.user = this.sync = this.depp = false
     }
 
     this.id = id++
@@ -37,11 +39,14 @@ class Watcher {
   }
 
   update () {
-    queueWatcher(this)
+    if (this.sync) {
+      this.run()
+    } else {
+      queueWatcher(this)
+    }
   }
 
   run () {
-    console.log('#')
     const oldVal = this.value
     const newVal = this.value = this.get()
 
