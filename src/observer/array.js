@@ -14,9 +14,9 @@ const methods = [
 
 each(methods, (_, method) => {
   arrayMethods[method] = function (...args) {
-    const context = this
+    const ob = this.__ob__
     const original = arrayProto[method]
-    const result = original.call(context, ...args)
+    const result = original.call(this, ...args)
     
     let inserted = null
     switch (method) {
@@ -31,8 +31,8 @@ each(methods, (_, method) => {
       }
     }
 
-    context.__ob__.observeArray(inserted)
-    // context.__ob__.dep.notify()
+    ob.observeArray(inserted)
+    ob.dep.notify()
 
     return result
   }

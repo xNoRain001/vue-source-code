@@ -1,3 +1,4 @@
+import Dep from "./dep"
 import observe from "./observe"
 import arrayMethods from "./array"
 import defineReactive from "./define-reactive"
@@ -9,6 +10,8 @@ import {
 
 class Observer {
   constructor (v) {
+    this.dep = new Dep()
+
     def(v, '__ob__', this)
 
     if (isArray(v)) {

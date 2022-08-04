@@ -99,43 +99,6 @@
     return a instanceof b;
   };
 
-  var arrayProto = Array.prototype;
-  var arrayMethods = Object.create(arrayProto);
-  var methods = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse'];
-  each(methods, function (_, method) {
-    arrayMethods[method] = function () {
-      var context = this;
-      var original = arrayProto[method];
-
-      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
-        args[_key] = arguments[_key];
-      }
-
-      var result = original.call.apply(original, [context].concat(args));
-      var inserted = null;
-
-      switch (method) {
-        case 'push':
-        case 'unshift':
-          {
-            inserted = args;
-            break;
-          }
-
-        case 'splice':
-          {
-            inserted = args.splice(2);
-            break;
-          }
-      }
-
-      context.__ob__.observeArray(inserted); // context.__ob__.dep.notify()
-
-
-      return result;
-    };
-  });
-
   var id$1 = 1;
 
   var Dep = /*#__PURE__*/function () {
@@ -168,16 +131,74 @@
     return Dep;
   }();
 
+  var arrayProto = Array.prototype;
+  var arrayMethods = Object.create(arrayProto);
+  var methods = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse'];
+  each(methods, function (_, method) {
+    arrayMethods[method] = function () {
+      var ob = this.__ob__;
+      var original = arrayProto[method];
+
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      var result = original.call.apply(original, [this].concat(args));
+      var inserted = null;
+
+      switch (method) {
+        case 'push':
+        case 'unshift':
+          {
+            inserted = args;
+            break;
+          }
+
+        case 'splice':
+          {
+            inserted = args.splice(2);
+            break;
+          }
+      }
+
+      ob.observeArray(inserted);
+      ob.dep.notify();
+      return result;
+    };
+  });
+
+  var dependArray = function dependArray(val, target) {
+    each(val, function (_, v) {
+      var ob = null;
+
+      if (v && (ob = v.__ob__)) {
+        ob.dep.depend(target);
+      }
+
+      if (isArray(v)) {
+        dependArray(v, target);
+      }
+    });
+  };
+
   var defineReactive = function defineReactive(obj, key, val) {
     var dep = new Dep(); // 所有层次的对象的属性
 
-    observe(val);
+    var childOb = observe(val);
     Object.defineProperty(obj, key, {
       get: function get() {
         var target = Dep.target;
 
         if (target) {
           dep.depend(target);
+
+          if (childOb) {
+            childOb.dep.depend(target);
+
+            if (isArray(val)) {
+              dependArray(val, target);
+            }
+          }
         }
 
         return val;
@@ -196,6 +217,7 @@
     function Observer(v) {
       _classCallCheck(this, Observer);
 
+      this.dep = new Dep();
       def(v, '__ob__', this);
 
       if (isArray(v)) {
