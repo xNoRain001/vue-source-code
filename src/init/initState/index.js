@@ -1,7 +1,7 @@
-import initData from "./init-data"
-import initMethods from "./init-methods"
-import initWatch from "./init-watch"
-import initComputed from "./init-computed"
+import initData from "./initData"
+import initMethods from "./initMethods"
+import initWatch from "./initWatch"
+import initComputed from "./initComputed"
 
 const initState = (vm) => {
   const { data, methods, watch, computed } = vm.$options

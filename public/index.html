@@ -21,6 +21,17 @@
           foo: 'foo',
           bar: 'bar'
         }
+      },
+      watch: {
+        foo (newVal, oldVal) {
+          console.log(newVal, oldVal)
+        },
+        bar: {
+          immediate: true,
+          handler (newVal, oldVal) {
+            console.log(newVal, oldVal)
+          }
+        }
       }
     })
   </script>

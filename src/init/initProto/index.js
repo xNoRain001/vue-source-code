@@ -1,74 +1,21 @@
-import Watcher from '../../observer/watcher'
-import initState from '../initState'
-import compileToFunctions from '../../compiler'
-import { noop, isObject } from '../../utils'
-import { patch, createTextVnode, createElementVnode } from '../../vdom'
+import _c from './_c'
+import _v from './_v'
+import _s from './_s'
+import _init from './_init'
+import $mount from './$mount'
+import $watch from './$watch'
+import _update from './_update'
+import _render from './_render'
 
 const initProto = Vue => {
-  Vue.prototype._init = function () {
-    const vm = this
-    const { el } = vm.$options
-
-    initState(vm)
-
-    if (el) {
-      this.$mount(el)
-    }
-  }
-
-  Vue.prototype.$mount = function (el) {
-    const vm = this
-    vm.$el = el = document.querySelector(el)
-    const template = el.outerHTML
-    // HTML => render
-    const render = compileToFunctions(template)
-    vm.$options.render = render
-
-    mountComponent(vm)
-  }
-
-  const mountComponent = (vm) => {
-    const updateComponent = () => {
-      vm._update(vm._render())
-    }
-
-    new Watcher(vm, updateComponent, noop)
-  }
-
-  Vue.prototype._update = function (vnode) {
-    const vm = this
-    const prevVnode = vm._vnode
-
-    vm._vnode = vnode
-    vm.$el = patch(vm.$el, vnode)
-
-    // if (!prevVnode) {
-    //   vm.$el = patch(vm.$el, vnode)
-    // } else {
-    //   vm.$el = patch(prevVnode, vnode)
-    // }
-  }
-
-  Vue.prototype._render = function () {
-    const vm = this
-    const { render } = vm.$options
-
-    return render.call(vm) // Vnode
-  }
-
-  Vue.prototype._c = (tag, data, children) => {
-    return createElementVnode(tag, data, children)
-  }
-
-  Vue.prototype._v = text => {
-    return createTextVnode(text)
-  }
-
-  Vue.prototype._s = val => {
-    return isObject(val)
-      ? JSON.stringify(val)
-      : val
-  }
+  Vue.prototype._c = _c
+  Vue.prototype._v = _v
+  Vue.prototype._s = _s
+  Vue.prototype._init = _init
+  Vue.prototype.$mount = $mount
+  Vue.prototype.$watch = $watch
+  Vue.prototype._update = _update
+  Vue.prototype._render = _render
 }
 
 export default initProto

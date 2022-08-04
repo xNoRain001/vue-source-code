@@ -39,6 +39,18 @@
     return Constructor;
   }
 
+  var proxy = function proxy(vm, soureKey, key) {
+    Object.defineProperty(vm, key, {
+      get: function get() {
+        // 保证总是获取到最新的
+        return vm[soureKey][key];
+      },
+      set: function set(newVal) {
+        vm[soureKey][key] = newVal;
+      }
+    });
+  };
+
   var has = function has(target, prop) {
     return target.hasOwnProperty(prop);
   };
@@ -85,6 +97,10 @@
 
   var isUndef = function isUndef(v) {
     return v == null;
+  };
+
+  var isString = function isString(v) {
+    return typeof v === 'string';
   };
 
   var isObject = function isObject(v) {
@@ -280,18 +296,6 @@
     observe(data);
   };
 
-  var proxy = function proxy(vm, soureKey, key) {
-    Object.defineProperty(vm, key, {
-      get: function get() {
-        // 保证总是获取到最新的
-        return vm[soureKey][key];
-      },
-      set: function set(newVal) {
-        vm[soureKey][key] = newVal;
-      }
-    });
-  };
-
   var initMethods = function initMethods(vm) {
     var methods = vm.$options.methods;
 
@@ -300,11 +304,39 @@
     }
   };
 
+  var createWatcher = function createWatcher(vm, expOrFn, handler) {
+    var options = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+
+    if (isPlainObject(handler)) {
+      options = handler;
+      handler = handler.handler;
+    }
+
+    if (isString(handler)) {
+      handler = vm[handler];
+    }
+
+    return vm.$watch(expOrFn, handler, options);
+  };
+
+  var initWatch = function initWatch(vm) {
+    var watch = vm.$options.watch;
+    each(watch, function (key, handler) {
+      if (isArray(handler)) {
+        each(handler, function (_, h) {
+          createWatcher(vm, key, h);
+        });
+      } else {
+        createWatcher(vm, key, handler);
+      }
+    });
+  };
+
   var initState = function initState(vm) {
     var _vm$$options = vm.$options,
         data = _vm$$options.data,
-        methods = _vm$$options.methods;
-        _vm$$options.watch;
+        methods = _vm$$options.methods,
+        watch = _vm$$options.watch;
         _vm$$options.computed;
 
     if (data) {
@@ -314,6 +346,111 @@
     if (methods) {
       initMethods(vm);
     }
+
+    if (watch) {
+      initWatch(vm);
+    }
+  };
+
+  var createText = function createText(text) {
+    return document.createTextNode(text);
+  };
+
+  var createElement = function createElement(tag) {
+    return document.createElement(tag);
+  };
+
+  var createElm = function createElm(vnode) {
+    var tag = vnode.tag,
+        text = vnode.text;
+        vnode.data;
+        var children = vnode.children;
+    var elm = null;
+
+    if (isDef(tag)) {
+      // element
+      elm = vnode.elm = createElement(tag);
+      each(children, function (_, child) {
+        elm.appendChild(createElm(child));
+      });
+    } else {
+      // text
+      elm = vnode.elm = createText(text);
+    }
+
+    return elm;
+  };
+
+  var patch = function patch(oldVnode, vnode) {
+    if (isUndef(oldVnode)) {
+      // render component
+      return;
+    }
+
+    if (isDef(oldVnode.nodeType)) {
+      // init render
+      var elm = createElm(vnode);
+      var body = oldVnode.parentNode;
+      body.insertBefore(elm, oldVnode.nextSibling);
+      body.removeChild(oldVnode);
+      return elm;
+    }
+  };
+
+  var createVnode = function createVnode(tag, data, children, text, key, elm) {
+    if (isArray(data)) {
+      children = data;
+      data = '';
+    }
+
+    return {
+      tag: tag,
+      data: data,
+      children: children,
+      text: text,
+      key: key,
+      elm: elm
+    };
+  };
+
+  var createTextVnode = function createTextVnode(text) {
+    return createVnode(undefined, undefined, undefined, text);
+  };
+
+  var createElementVnode = function createElementVnode(tag, data, children) {
+    return createVnode(tag, data, children);
+  };
+
+  var _c = function _c(tag, data, children) {
+    return createElementVnode(tag, data, children);
+  };
+
+  var _v = function _v(text) {
+    return createTextVnode(text);
+  };
+
+  var _s = function _s(val) {
+    return isObject(val) ? JSON.stringify(val) : val;
+  };
+
+  var _init = function _init() {
+    var vm = this;
+    var el = vm.$options.el;
+    initState(vm);
+
+    if (el) {
+      this.$mount(el);
+    }
+  };
+
+  var parsePath = function parsePath(path) {
+    var segments = path.split('.');
+    return function (vm) {
+      each(segments, function (_, key) {
+        vm = vm[key];
+      });
+      return vm;
+    };
   };
 
   var pushTarget = function pushTarget(target) {
@@ -330,26 +467,45 @@
     function Watcher(vm, expOrFn, cb, options) {
       _classCallCheck(this, Watcher);
 
+      if (options) {
+        this.user = options.user;
+      } else {
+        this.user = false;
+      }
+
       this.id = id++;
       this.vm = vm;
-      this.cb = cb;
+      this.cb = cb; // user watcher's handler
+
       this.deps = [];
       this.depIds = new Set();
-      this.getter = expOrFn;
-      this.get();
+
+      if (isFunction(expOrFn)) {
+        this.getter = expOrFn;
+      } else {
+        this.getter = parsePath(expOrFn);
+      }
+
+      this.value = this.get();
     }
 
     _createClass(Watcher, [{
       key: "get",
       value: function get() {
         pushTarget(this);
-        this.getter();
+        var value = this.getter(this.vm);
         popTarget();
+        return value;
       }
     }, {
       key: "update",
       value: function update() {
-        this.get();
+        var oldVal = this.value;
+        var newVal = this.value = this.get();
+
+        if (this.user) {
+          this.cb.call(vm, newVal, oldVal);
+        }
       }
     }, {
       key: "addDep",
@@ -605,132 +761,62 @@
     return new Function("with (this) { return ".concat(code, " }"));
   };
 
-  var createText = function createText(text) {
-    return document.createTextNode(text);
+  var $mount = function $mount(el) {
+    var vm = this;
+    vm.$el = el = document.querySelector(el);
+    var template = el.outerHTML; // HTML => render
+
+    var render = compileToFunctions(template);
+    vm.$options.render = render;
+    mountComponent(vm);
   };
 
-  var createElement = function createElement(tag) {
-    return document.createElement(tag);
-  };
-
-  var createElm = function createElm(vnode) {
-    var tag = vnode.tag,
-        text = vnode.text;
-        vnode.data;
-        var children = vnode.children;
-    var elm = null;
-
-    if (isDef(tag)) {
-      // element
-      elm = vnode.elm = createElement(tag);
-      each(children, function (_, child) {
-        elm.appendChild(createElm(child));
-      });
-    } else {
-      // text
-      elm = vnode.elm = createText(text);
-    }
-
-    return elm;
-  };
-
-  var patch = function patch(oldVnode, vnode) {
-    if (isUndef(oldVnode)) {
-      // render component
-      return;
-    }
-
-    if (isDef(oldVnode.nodeType)) {
-      // init render
-      var elm = createElm(vnode);
-      var body = oldVnode.parentNode;
-      body.insertBefore(elm, oldVnode.nextSibling);
-      body.removeChild(oldVnode);
-      return elm;
-    }
-  };
-
-  var createVnode = function createVnode(tag, data, children, text, key, elm) {
-    if (isArray(data)) {
-      children = data;
-      data = '';
-    }
-
-    return {
-      tag: tag,
-      data: data,
-      children: children,
-      text: text,
-      key: key,
-      elm: elm
+  var mountComponent = function mountComponent(vm) {
+    var updateComponent = function updateComponent() {
+      vm._update(vm._render());
     };
+
+    new Watcher(vm, updateComponent, noop);
   };
 
-  var createTextVnode = function createTextVnode(text) {
-    return createVnode(undefined, undefined, undefined, text);
+  var $watch = function $watch(expOrFn, handler, options) {
+    var vm = this;
+    options.user = true;
+
+    var _Watcher = new Watcher(vm, expOrFn, handler, options),
+        value = _Watcher.value;
+
+    if (options.immediate) {
+      handler.call(vm, value);
+    }
   };
 
-  var createElementVnode = function createElementVnode(tag, data, children) {
-    return createVnode(tag, data, children);
+  var _update = function _update(vnode) {
+    var vm = this;
+    vm._vnode;
+    vm._vnode = vnode;
+    vm.$el = patch(vm.$el, vnode); // if (!prevVnode) {
+    //   vm.$el = patch(vm.$el, vnode)
+    // } else {
+    //   vm.$el = patch(prevVnode, vnode)
+    // }
+  };
+
+  var _render = function _render() {
+    var vm = this;
+    var render = vm.$options.render;
+    return render.call(vm); // Vnode
   };
 
   var initProto = function initProto(Vue) {
-    Vue.prototype._init = function () {
-      var vm = this;
-      var el = vm.$options.el;
-      initState(vm);
-
-      if (el) {
-        this.$mount(el);
-      }
-    };
-
-    Vue.prototype.$mount = function (el) {
-      var vm = this;
-      vm.$el = el = document.querySelector(el);
-      var template = el.outerHTML; // HTML => render
-
-      var render = compileToFunctions(template);
-      vm.$options.render = render;
-      mountComponent(vm);
-    };
-
-    var mountComponent = function mountComponent(vm) {
-      var updateComponent = function updateComponent() {
-        vm._update(vm._render());
-      };
-
-      new Watcher(vm, updateComponent, noop);
-    };
-
-    Vue.prototype._update = function (vnode) {
-      var vm = this;
-      vm._vnode;
-      vm._vnode = vnode;
-      vm.$el = patch(vm.$el, vnode); // if (!prevVnode) {
-      //   vm.$el = patch(vm.$el, vnode)
-      // } else {
-      //   vm.$el = patch(prevVnode, vnode)
-      // }
-    };
-
-    Vue.prototype._render = function () {
-      var vm = this;
-      var render = vm.$options.render;
-      return render.call(vm); // Vnode
-    };
-
-    Vue.prototype._c = function (tag, data, children) {
-      return createElementVnode(tag, data, children);
-    };
-
-    Vue.prototype._v = function (text) {
-      return createTextVnode(text);
-    };
-
-    Vue.prototype._s = function (val) {
-      return isObject(val) ? JSON.stringify(val) : val;
-    };
+    Vue.prototype._c = _c;
+    Vue.prototype._v = _v;
+    Vue.prototype._s = _s;
+    Vue.prototype._init = _init;
+    Vue.prototype.$mount = $mount;
+    Vue.prototype.$watch = $watch;
+    Vue.prototype._update = _update;
+    Vue.prototype._render = _render;
   };
 
   var Vue = /*#__PURE__*/_createClass(function Vue() {

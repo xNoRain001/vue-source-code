@@ -1,27 +1,47 @@
+import parsePath from "./parse-path"
+import { isFunction } from "../utils"
 import { popTarget, pushTarget } from "./handle-target"
 
 let id = 1
 
 class Watcher {
   constructor (vm, expOrFn, cb, options) {
+    if (options) {
+      this.user = options.user
+    } else {
+      this.user = false
+    }
+
     this.id = id++
     this.vm = vm
-    this.cb = cb
+    this.cb = cb // user watcher's handler
     this.deps = []
     this.depIds = new Set()
-    this.getter = expOrFn
 
-    this.get()
+    if (isFunction(expOrFn)) {
+      this.getter = expOrFn
+    } else {
+      this.getter = parsePath(expOrFn)
+    }
+
+    this.value = this.get()
   }
 
   get () {
     pushTarget(this)
-    this.getter()
+    const value = this.getter(this.vm)
     popTarget()
+
+    return value
   }
 
   update () {
-    this.get()
+    const oldVal = this.value
+    const newVal = this.value = this.get()
+
+    if (this.user) {
+      this.cb.call(vm, newVal, oldVal)
+    }
   }
 
   addDep (dep) {
