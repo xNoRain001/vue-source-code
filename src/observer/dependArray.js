@@ -1,15 +1,15 @@
 import { each, isArray } from "../utils"
 
-const dependArray = (val, target) => {
+const dependArray = (val) => {
   each(val, (_, v) => {
     let ob = null
 
     if (v && (ob = v.__ob__)) {
-      ob.dep.depend(target)
+      ob.dep.depend()
     }
 
     if (isArray(v)) {
-      dependArray(v, target)
+      dependArray(v)
     }
   })
 }

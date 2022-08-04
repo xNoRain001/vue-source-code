@@ -12,8 +12,8 @@ class Dep {
     this.subs.push(watcher)
   }
 
-  depend (watcher) {
-    watcher.addDep(this)
+  depend () {
+    Dep.target.addDep(this)
   }
 
   notify () {

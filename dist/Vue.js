@@ -160,8 +160,8 @@
       }
     }, {
       key: "depend",
-      value: function depend(watcher) {
-        watcher.addDep(this);
+      value: function depend() {
+        Dep.target.addDep(this);
       }
     }, {
       key: "notify",
@@ -211,16 +211,16 @@
     };
   });
 
-  var dependArray = function dependArray(val, target) {
+  var dependArray = function dependArray(val) {
     each(val, function (_, v) {
       var ob = null;
 
       if (v && (ob = v.__ob__)) {
-        ob.dep.depend(target);
+        ob.dep.depend();
       }
 
       if (isArray(v)) {
-        dependArray(v, target);
+        dependArray(v);
       }
     });
   };
@@ -231,16 +231,14 @@
     var childOb = observe(val);
     Object.defineProperty(obj, key, {
       get: function get() {
-        var target = Dep.target;
-
-        if (target) {
-          dep.depend(target);
+        if (Dep.target) {
+          dep.depend();
 
           if (childOb) {
-            childOb.dep.depend(target);
+            childOb.dep.depend();
 
             if (isArray(val)) {
-              dependArray(val, target);
+              dependArray(val);
             }
           }
         }
@@ -360,12 +358,245 @@
     });
   };
 
+  var set = new Set();
+
+  var traverse = function traverse(val) {
+    _traverse(val, set);
+
+    set.clear();
+  };
+
+  var _traverse = function _traverse(val, set) {
+    if (!isObject(val)) {
+      return;
+    }
+
+    var ob = val.__ob__;
+
+    if (ob) {
+      var id = ob.dep.id;
+
+      if (set.has(id)) {
+        return;
+      }
+
+      set.add(id);
+    }
+
+    if (isArray(val)) {
+      each(val, function (_, v) {
+        traverse(v);
+      });
+    }
+
+    if (isPlainObject(val)) {
+      each(val, function (_, v) {
+        traverse(v);
+      });
+    }
+  };
+
+  var parsePath = function parsePath(path) {
+    var segments = path.split('.');
+    return function (vm) {
+      each(segments, function (_, key) {
+        vm = vm[key];
+      });
+      return vm;
+    };
+  };
+
+  var wathcerIds = new Set();
+  var queue = [];
+  var waiting = false;
+
+  var queueWatcher = function queueWatcher(watcher) {
+    var id = watcher.id;
+
+    if (!wathcerIds.has(id)) {
+      wathcerIds.add(id);
+      queue.push(watcher);
+    }
+
+    if (!waiting) {
+      nextTick(flushSchedulerQueue);
+      waiting = true;
+    }
+  };
+
+  var flushSchedulerQueue = function flushSchedulerQueue() {
+    each(queue, function (_, watcher) {
+      watcher.run();
+    });
+    resetState();
+  };
+
+  var resetState = function resetState() {
+    wathcerIds = new Set();
+    queue = [];
+    waiting = false;
+  };
+
+  var stack = [];
+
+  var pushTarget = function pushTarget(target) {
+    Dep.target = target;
+    stack.push(target);
+  };
+
+  var popTarget = function popTarget() {
+    stack.pop();
+    Dep.target = stack[stack.length - 1];
+  };
+
+  var id = 1;
+
+  var Watcher = /*#__PURE__*/function () {
+    function Watcher(vm, expOrFn, cb, options) {
+      _classCallCheck(this, Watcher);
+
+      if (options) {
+        this.user = !!options.user;
+        this.sync = !!options.sync;
+        this.deep = !!options.deep;
+        this.lazy = !!options.lazy;
+      } else {
+        this.user = this.sync = this.depp = this.lazy = false;
+      }
+
+      this.id = id++;
+      this.vm = vm;
+      this.cb = cb; // user watcher's handler
+
+      this.dirty = this.lazy; // for computed watcher
+
+      this.deps = [];
+      this.depIds = new Set();
+
+      if (isFunction(expOrFn)) {
+        this.getter = expOrFn;
+      } else {
+        this.getter = parsePath(expOrFn);
+      }
+
+      this.value = this.lazy ? undefined : this.get();
+    }
+
+    _createClass(Watcher, [{
+      key: "get",
+      value: function get() {
+        pushTarget(this);
+        var vm = this.vm;
+        var value = this.getter.call(vm, vm);
+
+        if (this.deep) {
+          traverse(value);
+        }
+
+        popTarget();
+        return value;
+      }
+    }, {
+      key: "update",
+      value: function update() {
+        if (this.sync) {
+          this.run();
+        } else if (this.lazy) {
+          this.dirty = true;
+        } else {
+          queueWatcher(this);
+        }
+      }
+    }, {
+      key: "run",
+      value: function run() {
+        var oldVal = this.value;
+        var newVal = this.value = this.get();
+
+        if (this.user) {
+          this.cb.call(vm, newVal, oldVal);
+        }
+      }
+    }, {
+      key: "evaluate",
+      value: function evaluate() {
+        this.value = this.get();
+        this.dirty = false;
+      }
+    }, {
+      key: "addDep",
+      value: function addDep(dep) {
+        var id = dep.id;
+
+        if (!this.depIds.has(id)) {
+          this.deps.push(dep);
+          this.depIds.add(id);
+          dep.addSub(this);
+        }
+      }
+    }, {
+      key: "depend",
+      value: function depend() {
+        each(this.deps, function (_, dep) {
+          dep.depend();
+        });
+      }
+    }]);
+
+    return Watcher;
+  }();
+
+  var createComputedGetter = function createComputedGetter(key) {
+    return function () {
+      var vm = this;
+      var watcher = vm._computedWatchers[key];
+
+      if (watcher.dirty) {
+        watcher.evaluate();
+      }
+
+      if (Dep.target) {
+        watcher.depend();
+      }
+
+      return watcher.value;
+    };
+  };
+
+  var propertyDefinition = {};
+
+  var defineComputed = function defineComputed(vm, key, userDef) {
+    if (isFunction(userDef)) {
+      propertyDefinition.get = createComputedGetter(key);
+      propertyDefinition.set = noop;
+    } else {
+      propertyDefinition.get = userDef.getter;
+      propertyDefinition.set = userDef.set || noop;
+    }
+
+    Object.defineProperty(vm, key, propertyDefinition);
+  };
+
+  var computedWatcherOptions = {
+    lazy: true
+  };
+
+  var initComputed = function initComputed(vm) {
+    var watchers = vm._computedWatchers = Object.create(null);
+    var computed = vm.$options.computed;
+    each(computed, function (key, userDef) {
+      var getter = isFunction(userDef) ? userDef : userDef.getter;
+      watchers[key] = new Watcher(vm, getter, noop, computedWatcherOptions);
+      defineComputed(vm, key, userDef);
+    });
+  };
+
   var initState = function initState(vm) {
     var _vm$$options = vm.$options,
         data = _vm$$options.data,
         methods = _vm$$options.methods,
-        watch = _vm$$options.watch;
-        _vm$$options.computed;
+        watch = _vm$$options.watch,
+        computed = _vm$$options.computed;
 
     if (data) {
       initData(vm);
@@ -377,6 +608,10 @@
 
     if (watch) {
       initWatch(vm);
+    }
+
+    if (computed) {
+      initComputed(vm);
     }
   };
 
@@ -470,171 +705,6 @@
       this.$mount(el);
     }
   };
-
-  var set = new Set();
-
-  var traverse = function traverse(val) {
-    _traverse(val, set);
-
-    set.clear();
-  };
-
-  var _traverse = function _traverse(val, set) {
-    if (!isObject(val)) {
-      return;
-    }
-
-    var ob = val.__ob__;
-
-    if (ob) {
-      var id = ob.dep.id;
-
-      if (set.has(id)) {
-        return;
-      }
-
-      set.add(id);
-    }
-
-    if (isArray(val)) {
-      each(val, function (_, v) {
-        traverse(v);
-      });
-    }
-
-    if (isPlainObject(val)) {
-      each(val, function (_, v) {
-        traverse(v);
-      });
-    }
-  };
-
-  var parsePath = function parsePath(path) {
-    var segments = path.split('.');
-    return function (vm) {
-      each(segments, function (_, key) {
-        vm = vm[key];
-      });
-      return vm;
-    };
-  };
-
-  var wathcerIds = new Set();
-  var queue = [];
-  var waiting = false;
-
-  var queueWatcher = function queueWatcher(watcher) {
-    var id = watcher.id;
-
-    if (!wathcerIds.has(id)) {
-      wathcerIds.add(id);
-      queue.push(watcher);
-    }
-
-    if (!waiting) {
-      nextTick(flushSchedulerQueue);
-      waiting = true;
-    }
-  };
-
-  var flushSchedulerQueue = function flushSchedulerQueue() {
-    each(queue, function (_, watcher) {
-      watcher.run();
-    });
-    resetState();
-  };
-
-  var resetState = function resetState() {
-    wathcerIds = new Set();
-    queue = [];
-    waiting = false;
-  };
-
-  var pushTarget = function pushTarget(target) {
-    Dep.target = target;
-  };
-
-  var popTarget = function popTarget() {
-    Dep.target = null;
-  };
-
-  var id = 1;
-
-  var Watcher = /*#__PURE__*/function () {
-    function Watcher(vm, expOrFn, cb, options) {
-      _classCallCheck(this, Watcher);
-
-      if (options) {
-        this.user = options.user;
-        this.sync = options.sync;
-        this.deep = options.deep;
-      } else {
-        this.user = this.sync = this.depp = false;
-      }
-
-      this.id = id++;
-      this.vm = vm;
-      this.cb = cb; // user watcher's handler
-
-      this.deps = [];
-      this.depIds = new Set();
-
-      if (isFunction(expOrFn)) {
-        this.getter = expOrFn;
-      } else {
-        this.getter = parsePath(expOrFn);
-      }
-
-      this.value = this.get();
-    }
-
-    _createClass(Watcher, [{
-      key: "get",
-      value: function get() {
-        pushTarget(this);
-        var value = this.getter(this.vm);
-
-        if (this.deep) {
-          traverse(value);
-        }
-
-        popTarget();
-        return value;
-      }
-    }, {
-      key: "update",
-      value: function update() {
-        if (this.sync) {
-          this.run();
-        } else {
-          queueWatcher(this);
-        }
-      }
-    }, {
-      key: "run",
-      value: function run() {
-        var oldVal = this.value;
-        var newVal = this.value = this.get();
-
-        if (this.user) {
-          this.cb.call(vm, newVal, oldVal);
-        }
-      }
-    }, {
-      key: "addDep",
-      value: function addDep(dep) {
-        var id = dep.id;
-
-        if (!this.depIds.has(id)) {
-          this.deps.push(dep);
-          this.depIds.add(id);
-          dep.addSub(this);
-        }
-      }
-    }]);
-
-    return Watcher;
-  }();
 
   var genProps = function genProps(attrs) {
     var staticStyle = '';

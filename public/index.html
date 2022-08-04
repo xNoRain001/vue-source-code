@@ -9,7 +9,7 @@
 <body>
   <div id="app">
     <div foo="foo" bar="bar" style="color: red; font-size: 16px;">
-      Lorem ipsum dolor sit {{ foo }} amet {{ bar }} consectetur adipisicing elit.
+      Lorem ipsum dolor sit {{ baz }} amet {{ baz }} consectetur adipisicing elit.
     </div>
   </div>
   <script src="../dist/Vue.js"></script>
@@ -20,24 +20,32 @@
       data () {
         return {
           foo: 'foo',
-          bar: {
-            baz: {
-              a: '1'
-            }
-          }
+          bar: 'bar'
         }
       },
-      watch: {
-        foo (newVal, oldVal) {
-          console.log(newVal, oldVal)
-        },
-        bar: {
-          handler (newVal, oldVal) {
-            console.log(newVal, oldVal)
-          }
+      computed: {
+        baz () {
+          return this.foo + this.bar
         }
       }
+      // watch: {
+      //   foo (newVal, oldVal) {
+      //     console.log(newVal, oldVal)
+      //   },
+      //   bar: {
+      //     handler (newVal, oldVal) {
+      //       console.log(newVal, oldVal)
+      //     }
+      //   }
+      // }
     })
+    setTimeout(() => {
+      vm.foo = 'aaa'
+    }, 1000);
+
+    setTimeout(() => {
+      vm.foo = 'aaa'
+    }, 2000);
   </script>
 </body>
 </html>

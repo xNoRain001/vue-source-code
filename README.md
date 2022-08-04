@@ -7,3 +7,5 @@ Just writing Vue source code for better understanding.
 - MVVM: HTML => AST => render => vnode => DOM
 
 - watch
+
+- computed

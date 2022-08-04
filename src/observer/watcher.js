@@ -1,7 +1,7 @@
 import traverse from "./tarverse"
 import parsePath from "./parse-path"
 import queueWatcher from "./queue-watcher"
-import { isFunction } from "../utils"
+import { each, isFunction } from "../utils"
 import { popTarget, pushTarget } from "./handle-target"
 
 let id = 1
@@ -9,16 +9,18 @@ let id = 1
 class Watcher {
   constructor (vm, expOrFn, cb, options) {
     if (options) {
-      this.user = options.user
-      this.sync = options.sync
-      this.deep = options.deep
+      this.user = !!options.user
+      this.sync = !!options.sync
+      this.deep = !!options.deep
+      this.lazy = !!options.lazy
     } else {
-      this.user = this.sync = this.depp = false
+      this.user = this.sync = this.depp = this.lazy = false
     }
 
     this.id = id++
     this.vm = vm
     this.cb = cb // user watcher's handler
+    this.dirty = this.lazy // for computed watcher
     this.deps = []
     this.depIds = new Set()
 
@@ -28,13 +30,16 @@ class Watcher {
       this.getter = parsePath(expOrFn)
     }
 
-    this.value = this.get()
+    this.value = this.lazy
+      ? undefined
+      : this.get()
   }
 
   get () {
     pushTarget(this)
-    
-    const value = this.getter(this.vm)
+
+    const { vm } = this
+    const value = this.getter.call(vm, vm)
 
     if (this.deep) {
       traverse(value)
@@ -48,7 +53,11 @@ class Watcher {
   update () {
     if (this.sync) {
       this.run()
-    } else {
+    }
+    else if (this.lazy)  {
+      this.dirty = true
+    }
+    else {
       queueWatcher(this)
     }
   }
@@ -62,6 +71,11 @@ class Watcher {
     }
   }
 
+  evaluate () {
+    this.value = this.get()
+    this.dirty = false
+  }
+
   addDep (dep) {
     const { id } = dep
     if (!this.depIds.has(id)) {
@@ -69,6 +83,12 @@ class Watcher {
       this.depIds.add(id)
       dep.addSub(this)
     }
+  }
+
+  depend () {
+    each(this.deps, (_, dep) => {
+      dep.depend()
+    })
   }
 }
 

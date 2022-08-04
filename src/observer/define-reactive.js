@@ -11,15 +11,14 @@ const defineReactive = (obj, key, val) => {
 
   Object.defineProperty(obj, key, {
     get () {
-      const { target } = Dep
-      if (target) {
-        dep.depend(target)
+      if (Dep.target) {
+        dep.depend()
 
         if (childOb) {
-          childOb.dep.depend(target)
+          childOb.dep.depend()
 
           if (isArray(val)) {
-            dependArray(val, target)
+            dependArray(val)
           }
         }
       }

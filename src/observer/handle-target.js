@@ -1,11 +1,14 @@
 import Dep from "./dep"
 
+const stack = []
 const pushTarget = target => {
   Dep.target = target
+  stack.push(target)
 }
 
 const popTarget = () => {
-  Dep.target = null
+  stack.pop()
+  Dep.target = stack[stack.length - 1]
 }
 
 export {
