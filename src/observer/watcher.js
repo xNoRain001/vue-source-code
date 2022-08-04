@@ -1,3 +1,4 @@
+import traverse from "./tarverse"
 import parsePath from "./parse-path"
 import queueWatcher from "./queue-watcher"
 import { isFunction } from "../utils"
@@ -32,7 +33,13 @@ class Watcher {
 
   get () {
     pushTarget(this)
+    
     const value = this.getter(this.vm)
+
+    if (this.deep) {
+      traverse(value)
+    }
+
     popTarget()
 
     return value

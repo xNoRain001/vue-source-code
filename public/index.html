@@ -13,13 +13,18 @@
     </div>
   </div>
   <script src="../dist/Vue.js"></script>
+  <!-- <script src="https://cdn.jsdelivr.net/npm/vue@2.7.8/dist/vue.js"></script> -->
   <script>
     const vm = new Vue({
       el: '#app',
       data () {
         return {
           foo: 'foo',
-          bar: 'bar'
+          bar: {
+            baz: {
+              a: '1'
+            }
+          }
         }
       },
       watch: {
@@ -27,8 +32,6 @@
           console.log(newVal, oldVal)
         },
         bar: {
-          immediate: true,
-          sync: true,
           handler (newVal, oldVal) {
             console.log(newVal, oldVal)
           }

@@ -471,6 +471,44 @@
     }
   };
 
+  var set = new Set();
+
+  var traverse = function traverse(val) {
+    _traverse(val, set);
+
+    set.clear();
+  };
+
+  var _traverse = function _traverse(val, set) {
+    if (!isObject(val)) {
+      return;
+    }
+
+    var ob = val.__ob__;
+
+    if (ob) {
+      var id = ob.dep.id;
+
+      if (set.has(id)) {
+        return;
+      }
+
+      set.add(id);
+    }
+
+    if (isArray(val)) {
+      each(val, function (_, v) {
+        traverse(v);
+      });
+    }
+
+    if (isPlainObject(val)) {
+      each(val, function (_, v) {
+        traverse(v);
+      });
+    }
+  };
+
   var parsePath = function parsePath(path) {
     var segments = path.split('.');
     return function (vm) {
@@ -555,6 +593,11 @@
       value: function get() {
         pushTarget(this);
         var value = this.getter(this.vm);
+
+        if (this.deep) {
+          traverse(value);
+        }
+
         popTarget();
         return value;
       }
