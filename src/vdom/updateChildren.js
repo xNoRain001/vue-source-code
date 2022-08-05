@@ -22,7 +22,7 @@ const updateChildren = (parentElm, oldCh, ch) => {
 
   while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
     if (isUndef(oldStartVnode)) {
-      oldEndVnode = oldCh[++oldStartIdx]
+      oldStartVnode = oldCh[++oldStartIdx]
     }
     else if (isUndef(oldEndVnode)) {
       oldEndVnode = oldCh[--oldEndIdx]
